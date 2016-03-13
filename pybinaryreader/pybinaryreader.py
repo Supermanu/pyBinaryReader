@@ -1,6 +1,37 @@
 import json
 import subprocess
 
+def getVector(dic):
+    vec = []
+    for v in dic['children']:
+        vec.append(v['value'])
+    return vec
+
+def simplifyAABB(AABB):
+    newDic = {}
+    newDic['min'] = getVector(AABB[0])
+    newDic['max'] = getVector(AABB[1])
+    if not type(AABB[2]) is int:
+        newDic['leftOffset'] = AABB[2]['value']
+    else:
+        newDic['leftOffset'] = AABB[2]
+    if not type(AABB[3]) is int:
+        newDic['rightOffset'] = AABB[3]['value']
+    else:
+        newDic['rightOffset'] = AABB[3]
+    newDic['leaf_face'] = 0 # Should be AABB[4]['value']
+    if type(AABB[5]) is int:
+        newDic['plane'] = AABB[5]
+    else:
+        newDic['plane'] = AABB[5]['value']
+    nextAABB = 6
+    if newDic['leftOffset'] > 0:
+        newDic['leftNode'] = simplifyAABB(AABB[nextAABB]['pointerTo'][0]['children'][0]['children'])
+        nextAABB += 1
+    if newDic['rightOffset'] > 0:
+        newDic['rightNode'] = simplifyAABB(AABB[nextAABB]['pointerTo'][0]['children'][0]['children'])
+    return newDic
+
 def simplifyVertices(arr):
     newVertices = []
     for v in arr:
@@ -73,6 +104,10 @@ def arrayToDic(arr, tab=0):
 
             if e['pointerTo'][0]['name'] == 'vertices':
                 newDic['vertices'] = simplifyVertices(e['pointerTo'][0]['children'])
+                continue
+
+            if e['pointerTo'][0]['name'] == 'AABBrec':
+                newDic['AABB'] = simplifyAABB(e['pointerTo'][0]['children'][0]['children'])
                 continue
 
             newDic[e['pointerTo'][0]['name']] = arrayToDic(e['pointerTo'][0]['children'], tab+1)
