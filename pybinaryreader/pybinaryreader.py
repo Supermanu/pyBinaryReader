@@ -19,7 +19,10 @@ def simplifyAABB(AABB):
         newDic['rightOffset'] = AABB[3]['value']
     else:
         newDic['rightOffset'] = AABB[3]
-    newDic['leaf_face'] = 0 # Should be AABB[4]['value']
+    if type(AABB[4]) is int:
+        newDic['leaf_face'] = AABB[4]
+    else:
+        newDic['leaf_face'] = AABB[4]['value']
     if type(AABB[5]) is int:
         newDic['plane'] = AABB[5]
     else:
