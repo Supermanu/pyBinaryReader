@@ -1,1 +1,1 @@
-from .pybinaryreader import Model
+from .pybinaryreader import Model, Wok

@@ -9,33 +9,28 @@ def getVector(dic):
 
 def simplifyAABB(AABB):
     newDic = {}
-    newDic['min'] = getVector(AABB[0])
-    newDic['max'] = getVector(AABB[1])
-    if not type(AABB[2]) is int:
-        newDic['leftOffset'] = AABB[2]['value']
-    else:
-        newDic['leftOffset'] = AABB[2]
-    if not type(AABB[3]) is int:
-        newDic['rightOffset'] = AABB[3]['value']
-    else:
-        newDic['rightOffset'] = AABB[3]
-    if type(AABB[4]) is int:
-        newDic['leaf_face'] = AABB[4]
-    else:
-        newDic['leaf_face'] = AABB[4]['value']
-    if type(AABB[5]) is int:
-        newDic['plane'] = AABB[5]
-    else:
-        newDic['plane'] = AABB[5]['value']
-    nextAABB = 6
+    for e in AABB:
+        if 'name' in e:
+            if e['name'] == 'min':
+                newDic['min'] = getVector(e)
+            elif e['name'] == 'max':
+                newDic['max'] = getVector(e)
+            elif e['name'] == 'leaf_face':
+                newDic['leaf_face'] = e['value']
+            elif e['name'] == 'plane':
+                newDic['plane'] = e['value']
+            elif e['name'] == 'leftOffset':
+                newDic['leftOffset'] = e['value']
+            elif e['name'] == 'rightOffset':
+                newDic['rightOffset'] = e['value']
+
     if newDic['leftOffset'] > 0:
-        newDic['leftNode'] = simplifyAABB(AABB[nextAABB]['pointerTo'][0]['children'][0]['children'])
-        nextAABB += 1
+        newDic['leftNode'] = simplifyAABB(AABB[len(AABB) - 2]['pointerTo'][0]['children'][0]['children'])
     if newDic['rightOffset'] > 0:
-        newDic['rightNode'] = simplifyAABB(AABB[nextAABB]['pointerTo'][0]['children'][0]['children'])
+        newDic['rightNode'] = simplifyAABB(AABB[len(AABB) - 1]['pointerTo'][0]['children'][0]['children'])
     return newDic
 
-def simplifyVertices(arr):
+def simplifyVector(arr):
     newVertices = []
     for v in arr:
         vertex = []
@@ -76,7 +71,7 @@ def simplifyDic(dic):
     else:
         return dic
 
-def arrayToDic(arr, tab=0):
+def arrayToDic(arr, tab=0, game='nwn'):
     newDic = {}
     for e in arr:
         if 'name' in e:
@@ -91,7 +86,7 @@ def arrayToDic(arr, tab=0):
                 children = e['children']
                 if len(e['children']) == 1:
  
-                    newDic[e['children'][0]['name']] = arrayToDic(e['children'][0]['children'], tab+1)
+                    newDic[e['children'][0]['name']] = arrayToDic(e['children'][0]['children'], tab+1, game)
                     continue
                 for c in children:
                     new_children.append(simplifyDic(c))
@@ -101,27 +96,40 @@ def arrayToDic(arr, tab=0):
                 print("DUNNO")
                 continue
         elif 'pointerTo' in e:
-            if e['pointerTo'][0]['name'] == 'faces':
-                newDic[e['pointerTo'][0]['name']] = simplifyFaces(arrayToDic(e['pointerTo'][0]['children'], tab+1))
+            if e['pointerTo'][0]['name'] == 'faces' and game == 'nwn':
+                newDic[e['pointerTo'][0]['name']] = simplifyFaces(arrayToDic(e['pointerTo'][0]['children'], tab+1, game))
                 continue
 
-            if e['pointerTo'][0]['name'] == 'vertices':
-                newDic['vertices'] = simplifyVertices(e['pointerTo'][0]['children'])
+            if e['pointerTo'][0]['name'] == 'vertices' or e['pointerTo'][0]['name'] == 'faces':
+                newDic[e['pointerTo'][0]['name']] = simplifyVector(e['pointerTo'][0]['children'])
                 continue
 
             if e['pointerTo'][0]['name'] == 'AABBrec':
                 newDic['AABB'] = simplifyAABB(e['pointerTo'][0]['children'][0]['children'])
                 continue
 
-            newDic[e['pointerTo'][0]['name']] = arrayToDic(e['pointerTo'][0]['children'], tab+1)
+            newDic[e['pointerTo'][0]['name']] = arrayToDic(e['pointerTo'][0]['children'], tab+1, game)
             continue
         else:
             print("DUNNO DUNNO")
 
     return newDic
 
+class Wok:
+    def __init__(self, file_path, binaryreader_path = None, game='kotor'):
+        self.game = game
+        data = []
+        if binaryreader_path:
+            data = json.loads(subprocess.getoutput(binaryreader_path + " -j " + file_path + " -g kotor"))['children']
+        else:
+            f = open(file_path, 'r')
+            data = json.loads(f.read())['children']
+
+        self.model = arrayToDic(data, game=self.game)
+
 class Model:
-	def __init__(self, file_path, binaryreader_path = None):
+	def __init__(self, file_path, binaryreader_path = None, game = 'nwn'):
+		self.game = game
 		data = []
 		if binaryreader_path:
 			data = json.loads(subprocess.getoutput(binaryreader_path + " -j " + file_path))['children']
@@ -129,7 +137,7 @@ class Model:
 			f = open(file_path, 'r')
 			data = json.loads(f.read())['children']
 
-		self.model = arrayToDic(data)
+		self.model = arrayToDic(data, game=self.game)
 
 	def getNode(self, node):
 		if node == 'rootNode':
